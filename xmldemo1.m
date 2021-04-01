@@ -112,8 +112,8 @@ disp('Press any key to display the xmltree.')
 disp(' ')
 pause;
 
-disp('>> view(tree);')
-view(tree);
+disp('>> editor(tree);')
+editor(tree);
 
 disp(' ')
 disp('Press any key to save the xmltree in example.xml.')

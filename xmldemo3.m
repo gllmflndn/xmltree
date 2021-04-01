@@ -10,7 +10,7 @@
 
 clc;
 disp('This demonstration illustrates the use of the xmltree class')
-disp('to convert an xmltree in a simple Matlab structure.')
+disp('to convert an xmltree in a simple MATLAB structure.')
 disp(' ')
 disp('Press any key to open the XML file ''example.xml''.')
 pause;
@@ -29,7 +29,7 @@ pause;
 save(t);
 
 disp(' ')
-disp('Convert the xmltree in a Matlab structure.')
+disp('Convert the xmltree in a MATLAB structure.')
 disp(' ')
 disp('Press any key to continue.')
 disp(' ')

@@ -22,10 +22,6 @@ function varargout = loadxml(filename,varargin)
 %
 %  See also LOAD, XML2MAT, XMLTREE.
 
-%  Copyright 2003 Guillaume Flandin. 
-%  $Revision: 4393 $  $Date: 2003/07/10 13:50 $
-
-%  $Id: loadxml.m 4393 2011-07-18 14:52:32Z guillaume $
 
 if nargin == 0
     filename = 'matlab.xml';
@@ -44,7 +40,7 @@ if ~exist(filename,'file')
     end
 end
 
-if nargout > 1,
+if nargout > 1
     error('[LOADXML] Too many output arguments.');
 end
 
@@ -61,7 +57,7 @@ for i=1:length(uid)
     if strcmp(get(t,uid(i),'type'),'element')
         vname = get(t,uid(i),'name');
         % TODO % No need to parse the whole tree 
-        if isempty(varargin) | ismember(varargin,vname)
+        if isempty(varargin) || ismember(varargin,vname)
             v = xml_create_var(t,uid(i));
             if nargout == 1
                 if flagfirstvar
@@ -110,7 +106,7 @@ function v = xml_create_var(t,uid)
                 s(2).subs = get(t,u(i),'name');
                 v = subsasgn(v,s,xml_create_var(t,u(i)));
             end
-            if isempty(u),
+            if isempty(u)
                 v = struct([]); % Need Matlab 6.0 and above
             end
         case 'cell'
@@ -140,9 +136,9 @@ function v = xml_create_var(t,uid)
             warning(sprintf('%s matrices not handled.',type));
             v = 0;
         otherwise
-            try,
+            try
                 v = feval(class(v),get(t,uid,'value'));
-            catch,
+            catch
                 warning(sprintf(...
                 '[LOADXML] Cannot convert from XML to %s.',type));
             end
