@@ -1,4 +1,4 @@
-function varargout = save(tree, filename)
+function varargout = save(tree,filename,varargin)
 % XMLTREE/SAVE Save an XML tree in an XML file
 % FORMAT varargout = save(tree,filename)
 %
@@ -14,10 +14,25 @@ function varargout = save(tree, filename)
 
 prolog = '<?xml version="1.0" ?>\n';
 
+order  = 0;
+if mod(numel(varargin),2)
+    error('[XMLTree] Invalid syntax.');
+end
+for i=1:2:numel(varargin)
+    switch lower(varargin{i})
+        case 'prettyprint'
+            if ~varargin{i+1}
+                order = -1;
+            end
+        otherwise
+            error('[XMLTree] Invalid syntax.');
+    end
+end
+
 %- Return the XML tree as a string
-if nargin == 1
+if nargin == 1 || isempty(filename)
     varargout{1} = [sprintf(prolog) ...
-        print_subtree(tree,'',root(tree))];
+        print_subtree(tree,root(tree),order)];
 %- Output specified
 else
     %- Filename provided
@@ -33,97 +48,75 @@ else
         error('[XMLTree] Invalid argument.');
     end
     fprintf(fid,prolog);
-    save_subtree(tree,fid,root(tree));
+    fprintf(fid,'%s',print_subtree(tree,root(tree),order));
     if ischar(filename), fclose(fid); end
+    
     if nargout == 1
-        varargout{1} = print_subtree(tree,'',root(tree));
+        varargout{1} = [sprintf(prolog) ...
+            print_subtree(tree,root(tree),order)];
     end
 end
 
 %==========================================================================
-function xmlstr = print_subtree(tree,xmlstr,uid,order)
-    if nargin < 4, order = 0; end
-    xmlstr = [xmlstr blanks(3*order)];
-    switch tree.tree{uid}.type
-        case 'element'
-            xmlstr = sprintf('%s<%s',xmlstr,tree.tree{uid}.name);
-            for i=1:length(tree.tree{uid}.attributes)
-                xmlstr = sprintf('%s %s="%s"', xmlstr, ...
-                    tree.tree{uid}.attributes{i}.key,...
-                    tree.tree{uid}.attributes{i}.val);
-            end
-            if isempty(tree.tree{uid}.contents)
-                xmlstr = sprintf('%s/>\n',xmlstr);
-            else
-                xmlstr = sprintf('%s>\n',xmlstr);
-                for i=1:length(tree.tree{uid}.contents)
-                    xmlstr = print_subtree(tree,xmlstr, ...
-                        tree.tree{uid}.contents(i),order+1);
-                end
-                xmlstr = [xmlstr blanks(3*order)];
-                xmlstr = sprintf('%s</%s>\n',xmlstr,...
-                    tree.tree{uid}.name);
-            end
-        case 'chardata'
-            xmlstr = sprintf('%s%s\n',xmlstr, ...
-                entity(tree.tree{uid}.value));
-        case 'cdata'
-            xmlstr = sprintf('%s<![CDATA[%s]]>\n',xmlstr, ...
-                tree.tree{uid}.value);
-        case 'pi'
-            xmlstr = sprintf('%s<?%s %s?>\n',xmlstr, ...
-                tree.tree{uid}.target, tree.tree{uid}.value);
-        case 'comment'
-            xmlstr = sprintf('%s<!-- %s -->\n',xmlstr,...
-                tree.tree{uid}.value);
-        otherwise
-            warning(sprintf('Type %s unknown: not saved', ...
-                tree.tree{uid}.type));
-    end
+function xmlstr = print_subtree(tree,uid,order)
 
-%==========================================================================
-function save_subtree(tree,fid,uid,order)
-    if nargin < 4, order = 0; end
-    fprintf(fid,blanks(3*order));
-    switch tree.tree{uid}.type
+if ~strcmp(tree.tree{uid}.type, 'element')
+    error('');
+end
+if nargin < 3, order = 0; end
+indentstr = '';
+closeindentstr = '';
+if order < 0
+    neworder = order;
+else
+    neworder = order + 1;
+    indentstr = [sprintf('\n') blanks(3 * neworder)];
+    closeindentstr = [sprintf('\n') blanks(3 * order)];
+end
+% Make contents of tag first, then decide what formatting to do after we
+% know whether there are any tag-like children
+contents = '';
+allchildrentext = true;
+for child_uid = tree.tree{uid}.contents
+    switch tree.tree{child_uid}.type
         case 'element'
-            fprintf(fid,'<%s',tree.tree{uid}.name);
-            for i=1:length(tree.tree{uid}.attributes)
-                fprintf(fid,' %s="%s"',...
-                tree.tree{uid}.attributes{i}.key, ...
-                tree.tree{uid}.attributes{i}.val);
-            end
-            if isempty(tree.tree{uid}.contents)
-                fprintf(fid,'/>\n');
-            else
-                fprintf(fid,'>\n');
-                for i=1:length(tree.tree{uid}.contents)
-                    save_subtree(tree,fid,...
-                        tree.tree{uid}.contents(i),order+1)
-                end
-                fprintf(fid,blanks(3*order));
-                fprintf(fid,'</%s>\n',tree.tree{uid}.name);
-            end
+            allchildrentext = false;
+            contents = [contents indentstr print_subtree(tree, child_uid, neworder)];
         case 'chardata'
-            fprintf(fid,'%s\n',entity(tree.tree{uid}.value));
+            contents = [contents entity(tree.tree{child_uid}.value)];
         case 'cdata'
-                fprintf(fid,'<![CDATA[%s]]>\n',tree.tree{uid}.value);
+            contents = [contents cdata(tree.tree{child_uid}.value)];
         case 'pi'
-            fprintf(fid,'<?%s %s?>\n',tree.tree{uid}.target, ...
-                tree.tree{uid}.value);
+            allchildrentext = false;
+            contents = [contents indentstr '<?' tree.tree{child_uid}.target ' ' tree.tree{child_uid}.value '?>'];
         case 'comment'
-            fprintf(fid,'<!-- %s -->\n',tree.tree{uid}.value);
+            allchildrentext = false;
+            contents = [contents indentstr '<!-- ' tree.tree{child_uid}.value ' -->'];
         otherwise
-            warning(sprintf('[XMLTree] Type %s unknown: not saved', ...
-                tree.tree{uid}.type));
+            warning('Type %s unknown: not saved', tree.tree{child_uid}.type);
     end
+end
+tagstr = ['<' tree.tree{uid}.name];
+for i = 1:length(tree.tree{uid}.attributes)
+    tagstr = [tagstr ' ' tree.tree{uid}.attributes{i}.key '="' tree.tree{uid}.attributes{i}.val '"'];
+end
+%tagstr isn't quite finished, but build xmlstr directly with it to save a little time
+if isempty(tree.tree{uid}.contents)
+    xmlstr = [tagstr '/>'];
+else
+    if allchildrentext
+        xmlstr = [tagstr '>' contents '</' tree.tree{uid}.name '>'];
+    else
+        xmlstr = [tagstr '>' contents closeindentstr '</' tree.tree{uid}.name '>'];
+    end
+end
 
 
 %==========================================================================
 function str = entity(str)
-    % This has the side effect of strtrim'ming the char array.
-    str = char(strrep(cellstr(str), '&',  '&amp;' ));
-    str = char(strrep(cellstr(str), '<',  '&lt;'  ));
-    str = char(strrep(cellstr(str), '>',  '&gt;'  ));
-    str = char(strrep(cellstr(str), '"',  '&quot;'));
-    str = char(strrep(cellstr(str), '''', '&apos;'));
+
+str = strrep(str, '&',  '&amp;' );
+str = strrep(str, '<',  '&lt;'  );
+str = strrep(str, '>',  '&gt;'  );
+str = strrep(str, '"',  '&quot;');
+str = strrep(str, '''', '&apos;');
