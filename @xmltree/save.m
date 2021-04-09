@@ -106,7 +106,7 @@ for i = 1:numel(tree.tree{uid}.attributes)
 end
 %tagstr isn't quite finished, but build xmlstr directly with it to save a little time
 if isempty(tree.tree{uid}.contents)
-    xmlstr = [tagstr '/>'];
+    xmlstr = [tagstr ' />'];
 else
     if allchildrentext
         xmlstr = [tagstr '>' contents '</' tree.tree{uid}.name '>'];
