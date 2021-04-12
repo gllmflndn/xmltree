@@ -28,28 +28,23 @@ for i=1:2:numel(varargin)
         switch lower(varargin{i})
             case 'prettyprint'
                 if ~varargin{i+1}
-                    indorder = -1;
+                    order = -1;
                 end
             otherwise
-                error(['[XMLTree] Unrecognized option "' varargin{i} '".']);
+                error(['[XMLTree] Unrecognised option "' varargin{i} '".']);
         end
     else
-        error(['[XMLTree] Option names must be strings.']); %"char vectors" may be too technical
+        error('[XMLTree] Option names must be strings.');
     end
 end
-%octave can't make handles to nested functions, while matlab can't call nested functions from non-nested
-%we don't want the implementation to be nested, because accidental variable name reuse can cause disaster
-%so use globals rather than detecting octave and using a shim
-global dofile outbuf fid;
-dofile = false;
-outbuf = {};
+
+fid = [];
 if nargin > 1 && ~isempty(filename)
-    dofile = true;
     %- Filename provided
     if ischar(filename)
         [fid, msg] = fopen(filename,'w');
         if fid==-1, error(msg); end
-        cleanupObj = onCleanup(@()fclose(fid)); %now we don't have to remember to fclose later
+        cleanupObj = onCleanup(@() fclose(fid));
         if isempty(tree.filename), tree.filename = filename; end
     %- File identifier provided
     elseif isnumeric(filename) && numel(filename) == 1
@@ -60,32 +55,37 @@ if nargin > 1 && ~isempty(filename)
     end
 end
 
+addstring(fid);
 addstring(sprintf(prolog));
 write_subtree(tree, root(tree), order);
 
-if dofile
-    %keep previous behavior: if nargout is 1, *also* generate string version even if generating file version
+if ~isempty(fid)
     if nargout == 1
-        dofile = false;
-        %addstring(prolog); %2.1 never put prolog in for this case, and note that using fid argument will have erased the prolog string
+        addstring([]);
+        addstring(sprintf(prolog));
         write_subtree(tree, root(tree), order);
-        varargout{1} = [outbuf{:}];
+        varargout{1} = addstring;
     end
 else
-    varargout{1} = [outbuf{:}];
+    varargout{1} = addstring;
 end
-
-clear global dofile outbuf fid;
-%end of save()
 
 
 %==========================================================================
-function addstring(instring)
-global dofile outbuf fid;
-if dofile
-    fprintf(fid, '%s', instring);
+function varargout = addstring(str)
+persistent fid outbuf
+if nargout > 0
+    varargout = {[outbuf{:}]};
+    return;
+elseif ~ischar(str)
+    fid = str;
+    outbuf = {};
+    return;
+end
+if ~isempty(fid)
+    fprintf(fid, '%s', str);
 else
-    outbuf{end + 1} = instring;
+    outbuf{end + 1} = str;
 end
 
 
@@ -105,18 +105,18 @@ else
     indentstr  = [sprintf('\n') blanks(3 * neworder)];
     closeindentstr = [sprintf('\n') blanks(3 * order)];
 end
-% We can write the contents of tag first, then decide what formatting to do after we
-% know whether there are any tag-like children
+% We can write the contents of tag first, then decide what formatting to do
+% after we know whether there are any tag-like children
 addstring(['<' tree.tree{uid}.name]);
 for i = 1:numel(tree.tree{uid}.attributes)
     addstring([' ' tree.tree{uid}.attributes{i}.key '="' tree.tree{uid}.attributes{i}.val '"']);
 end
 if isempty(tree.tree{uid}.contents)
     addstring(' />');
-    return; %clearer than having the rest in an else?
+    return;
 end
 addstring('>');
-allchildrentext = true; %need to track this for whether to indent the closing tag
+allchildrentext = true; % Need to track this for whether to indent the closing tag
 for child_uid = tree.tree{uid}.contents
     switch tree.tree{child_uid}.type
         case 'element'
