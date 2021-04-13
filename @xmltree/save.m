@@ -59,13 +59,11 @@ addstring(fid);
 addstring(sprintf(prolog));
 write_subtree(tree, root(tree), order);
 
-if ~isempty(fid)
-    if nargout == 1
-        addstring([]);
-        addstring(sprintf(prolog));
-        write_subtree(tree, root(tree), order);
-        varargout{1} = addstring;
-    end
+if ~isempty(fid) && nargout == 1
+    addstring([]);
+    addstring(sprintf(prolog));
+    write_subtree(tree, root(tree), order);
+    varargout{1} = addstring;
 else
     varargout{1} = addstring;
 end
@@ -99,7 +97,7 @@ if nargin < 3, order = 0; end
 indentstr      = '';
 closeindentstr = '';
 if order < 0
-    neworder   = order; %the "order = -1" trick for no formatting
+    neworder   = order; % No formatting
 else
     neworder   = order + 1;
     indentstr  = [sprintf('\n') blanks(3 * neworder)];
@@ -124,7 +122,7 @@ for child_uid = tree.tree{uid}.contents
             addstring(indentstr);
             write_subtree(tree, child_uid, neworder);
         case 'chardata'
-            addstring([entity(tree.tree{child_uid}.value)]);
+            addstring(entity(tree.tree{child_uid}.value));
         case 'cdata'
             addstring(['<![CDATA[' cdata(tree.tree{child_uid}.value) ']]>']);
         case 'pi'
