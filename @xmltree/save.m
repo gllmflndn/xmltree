@@ -49,7 +49,7 @@ if nargin > 1 && ~isempty(filename)
     %- File identifier provided
     elseif isnumeric(filename) && numel(filename) == 1
         fid = filename;
-        prolog = ''; %- With this option, do not write any prolog
+        prolog = ''; % With this option, do not write any prolog
     else
         error('[XMLTree] Invalid argument for filename.');
     end
@@ -59,11 +59,13 @@ addstring(fid);
 addstring(sprintf(prolog));
 write_subtree(tree, root(tree), order);
 
-if ~isempty(fid) && nargout == 1
-    addstring([]);
-    addstring(sprintf(prolog));
-    write_subtree(tree, root(tree), order);
-    varargout{1} = addstring;
+if ~isempty(fid)
+    if nargout == 1
+        addstring([]);
+        addstring(sprintf(prolog));
+        write_subtree(tree, root(tree), order);
+        varargout{1} = addstring;
+    end
 else
     varargout{1} = addstring;
 end
